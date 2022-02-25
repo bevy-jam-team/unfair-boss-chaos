@@ -3,7 +3,7 @@
 # Getting it to run locally
 
 ```
-rustup toolchain install wasm32-unknown-unknown
+rustup target add wasm32-unknown-unknown
 cargo install wasm-server-runner
 cargo run --release
 ```

@@ -1,0 +1,5 @@
+[target.'cfg(target_arch="wasm32")']
+runner = "wasm-server-runner"
+
+[build]
+target = "wasm32-unknown-unknown"

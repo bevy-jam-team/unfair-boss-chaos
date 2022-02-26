@@ -4,6 +4,7 @@ use bevy::prelude::*;
 // PLUGIN CORE
 // -----------------
 
+// Entry-point for the Plugin. Actually just followed the Unofficial Bevy Book to get this one done.
 pub struct PoC;
 
 impl Plugin for PoC {
@@ -21,23 +22,28 @@ impl Plugin for PoC {
     }
 }
 
-// CONSTANTS 
+// CONSTANTS
 
+// Values we might want to tweak and that are used to define specific properties of the entities.
 const PLAYER_SPEED_VALUE: f32 = 150.0;
 const BULLET_SPEED_VALUE: f32 = 300.0;
 
 // RESOURCES
 
+// A resource that holds the current mouse position relative to the game world. Implemented as a resource, we might want to 
+// use it in other parts of the game
 struct MousePosition {
     x_value: f32,
     y_value: f32,
 }
 
-// EVENTS
+// EVENTS -> used to check and trigger the shooting mechanic
 
 struct ShootEvent;
 
 // COMPONENTS
+
+// Just used tags component to be able to identify specific entities to retrieve
 
 #[derive(Component)]
 struct PlayerTag;
@@ -47,6 +53,8 @@ struct BulletTag;
 
 #[derive(Component)]
 struct CameraTag;
+
+// Components used to hold informations and data realtive to the entity they are attached to
 
 #[derive(Component)]
 struct Speed {
@@ -59,6 +67,9 @@ struct Direction {
 }
 
 // CUSTOM BUNDLES
+
+// Just custom bundles, to spawn a specific entity without the need to insert every time the specific
+// components related to that entity
 
 #[derive(Bundle)]
 struct PlayerBundle {
@@ -79,6 +90,11 @@ struct BulletBundle {
 
 // SYSTEMS
 
+// The names of the systems are as expressive as possible in order to allow an easy understanding of 
+// what they are doing
+
+
+// Startup system. Spawns all the things that are necessary at launch
 fn poc_setup(
     mut commands: Commands
 ) {
@@ -104,6 +120,7 @@ fn poc_setup(
     commands.insert_resource(MousePosition { x_value: 0.0, y_value: 0.0 });
 }
 
+// System that simply updated the player coordinates if buttons to move the player are pressed
 fn move_player(
     mut player_query: Query<(&mut Transform, &Speed), With<PlayerTag>>,
     keyboard_input: Res<Input<KeyCode>>,
@@ -125,6 +142,7 @@ fn move_player(
     }
 }
 
+// System that moves the bullets according to their direction and speed (direction is calculated when the bullet is spawned)
 fn move_bullets(
     mut bullets_query: Query<(&mut Transform, &Direction, &Speed), With<BulletTag>>,
     time: Res<Time>,
@@ -135,6 +153,7 @@ fn move_bullets(
     }
 }
 
+// System that updates the MousePosition resource, so that it is available for the entire app to use 
 fn update_mouse_position(
     mut mouse_position_info: ResMut<MousePosition>,
     windows_info: Res<Windows>,
@@ -154,6 +173,7 @@ fn update_mouse_position(
     }
 }
 
+// System that checks if the mouse button has been pressed. If so, queues a new event to shoot a bullet
 fn check_for_shoot_event(
     mut ev_shoot_writer: EventWriter<ShootEvent>,
     mouse_input: Res<Input<MouseButton>>,
@@ -163,6 +183,8 @@ fn check_for_shoot_event(
     }
 }
 
+// System that spawns a bullet if a ShootEvent was triggered. It just spawns a bullet in the current player position and calculates the direction
+// the bullet must follow
 fn shoot(
     mut commands: Commands,
     mut ev_shoot_reader: EventReader<ShootEvent>,

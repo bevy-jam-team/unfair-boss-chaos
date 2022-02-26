@@ -1,12 +1,10 @@
 use bevy::prelude::*;
 
+mod poc;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_startup_system(hello_world)
+        .add_plugin(poc::PoC)
         .run();
-}
-
-fn hello_world() {
-    info!("Hello World");
 }

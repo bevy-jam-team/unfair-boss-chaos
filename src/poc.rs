@@ -9,18 +9,22 @@ pub struct PoC;
 impl Plugin for PoC {
     fn build(&self, app: &mut App) {
         app.add_startup_system(poc_setup)
+            .add_event::<ShootEvent>()
             .add_system_set(
                 SystemSet::new()
                     .with_system(move_player).label("move_player")
                     .with_system(update_mouse_position).label("update_mouse_position")
-                    .with_system(print_mouse_coords).label("print_mouse_coords")
+                    .with_system(check_for_shoot_event).label("check_for_shoot_event")
+                    .with_system(shoot).label("shoot")
+                    .with_system(move_bullets).label("move_bullets")
             );
     }
 }
 
 // CONSTANTS 
 
-const SPEED_VALUE: f32 = 150.0;
+const PLAYER_SPEED_VALUE: f32 = 150.0;
+const BULLET_SPEED_VALUE: f32 = 300.0;
 
 // RESOURCES
 
@@ -29,10 +33,17 @@ struct MousePosition {
     y_value: f32,
 }
 
+// EVENTS
+
+struct ShootEvent;
+
 // COMPONENTS
 
 #[derive(Component)]
 struct PlayerTag;
+
+#[derive(Component)]
+struct BulletTag;
 
 #[derive(Component)]
 struct CameraTag;
@@ -42,12 +53,26 @@ struct Speed {
     value: f32,
 }
 
+#[derive(Component)]
+struct Direction {
+    value: Vec2,   
+}
+
 // CUSTOM BUNDLES
 
 #[derive(Bundle)]
 struct PlayerBundle {
     tag: PlayerTag,
     speed: Speed,
+    #[bundle]
+    sprite: SpriteBundle,
+}
+
+#[derive(Bundle)]
+struct BulletBundle {
+    tag: BulletTag,
+    speed: Speed,
+    direction: Direction,
     #[bundle]
     sprite: SpriteBundle,
 }
@@ -61,7 +86,7 @@ fn poc_setup(
 
     commands.spawn_bundle(PlayerBundle {
         tag: PlayerTag,
-        speed: Speed { value: SPEED_VALUE },
+        speed: Speed { value: PLAYER_SPEED_VALUE },
         sprite: SpriteBundle {
             sprite: Sprite {
                 color: Color::rgb(0.25, 0.25, 0.75),
@@ -100,6 +125,16 @@ fn move_player(
     }
 }
 
+fn move_bullets(
+    mut bullets_query: Query<(&mut Transform, &Direction, &Speed), With<BulletTag>>,
+    time: Res<Time>,
+) {
+    for (mut bullet_transform, bullet_direction, bullet_speed) in bullets_query.iter_mut() {
+        bullet_transform.translation.x += bullet_direction.value.x * bullet_speed.value * time.delta_seconds();
+        bullet_transform.translation.y += bullet_direction.value.y * bullet_speed.value * time.delta_seconds();
+    }
+}
+
 fn update_mouse_position(
     mut mouse_position_info: ResMut<MousePosition>,
     windows_info: Res<Windows>,
@@ -119,11 +154,42 @@ fn update_mouse_position(
     }
 }
 
-// BAD DEBUG CODE
-
-fn print_mouse_coords(
-    mouse_position_info: Res<MousePosition>
+fn check_for_shoot_event(
+    mut ev_shoot_writer: EventWriter<ShootEvent>,
+    mouse_input: Res<Input<MouseButton>>,
 ) {
-    info!("Mouse x pos: {}", mouse_position_info.x_value);
-    info!("Mouse y pos: {}", mouse_position_info.y_value);
+    if mouse_input.just_pressed(MouseButton::Left) {
+        ev_shoot_writer.send(ShootEvent);
+    }
 }
+
+fn shoot(
+    mut commands: Commands,
+    mut ev_shoot_reader: EventReader<ShootEvent>,
+    mouse_info: Res<MousePosition>,
+    player_info: Query<&Transform, With<PlayerTag>>
+) {
+
+    let player_transform = player_info.single();
+
+    for _ in ev_shoot_reader.iter() {
+        commands.spawn_bundle(BulletBundle {
+            tag: BulletTag,
+            speed: Speed { value: BULLET_SPEED_VALUE },
+            direction: Direction { value: Vec2::new(mouse_info.x_value - player_transform.translation.x, mouse_info.y_value - player_transform.translation.y).normalize()},
+            sprite: SpriteBundle {
+                sprite: Sprite {
+                    color: Color::rgb(0.75, 0.75, 0.75),
+                    ..Default::default()
+                },
+                transform: Transform {
+                    translation: Vec3::new(player_transform.translation.x, player_transform.translation.y, 0.0),
+                    scale: Vec3::new(15.0, 15.0, 0.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        });
+    }
+}
+

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.6"
+bevy_rapier2d = { version = "0.12.1", features = [ "simd-stable", "wasm-bindgen" ] }

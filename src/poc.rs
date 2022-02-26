@@ -124,6 +124,6 @@ fn update_mouse_position(
 fn print_mouse_coords(
     mouse_position_info: Res<MousePosition>
 ) {
-    println!("Mouse x pos: {}", mouse_position_info.x_value);
-    println!("Mouse y pos: {}", mouse_position_info.y_value);
+    info!("Mouse x pos: {}", mouse_position_info.x_value);
+    info!("Mouse y pos: {}", mouse_position_info.y_value);
 }

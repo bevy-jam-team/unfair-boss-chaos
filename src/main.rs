@@ -10,6 +10,7 @@ mod shooting;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(RapierRenderPlugin)
         .add_plugin(input::InputPlugin)

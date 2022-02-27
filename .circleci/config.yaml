@@ -12,3 +12,8 @@ jobs:
       - rust/check
       - rust/build:
           release: true
+
+workflows:
+  rust:
+    jobs:
+      - rust-check

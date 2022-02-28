@@ -1,26 +1,43 @@
+use std::f32::consts::PI;
+
 use bevy::{math::Vec3Swizzles, prelude::*};
 use bevy_rapier2d::prelude::*;
 
 use crate::{input::MousePosition, player::Player};
-use bevy_inspector_egui::Inspectable;
+use bevy_inspector_egui::{Inspectable, InspectorPlugin};
 
 pub struct ShootingPlugin;
 
 impl Plugin for ShootingPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_event::<ShootEvent>().add_system_set(
-			SystemSet::new()
-				.after("input")
-				.with_system(check_for_shoot_event)
-				.label("check_for_shoot_event")
-				.with_system(shoot)
-				.label("shoot"),
-		);
+		app.add_event::<ShootEvent>()
+			.add_system_set(
+				SystemSet::new()
+					.after("input")
+					.with_system(check_for_shoot_event)
+					.label("check_for_shoot_event")
+					.with_system(shoot)
+					.label("shoot"),
+			)
+			.add_plugin(InspectorPlugin::<BulletParams>::new());
 	}
 }
 
 /// Values we might want to tweak and that are used to define specific properties of the entities.
-const BULLET_FORCE_SCALE: f32 = 1000.0;
+#[derive(Inspectable)]
+struct BulletParams {
+	bullet_force_scale: f32,
+	bullet_offset: f32,
+}
+
+impl Default for BulletParams {
+	fn default() -> Self {
+		Self {
+			bullet_force_scale: 1000.0,
+			bullet_offset: 0.5,
+		}
+	}
+}
 
 /// used to check and trigger the shooting mechanic
 struct ShootEvent;
@@ -80,35 +97,34 @@ fn check_for_shoot_event(
 fn shoot(
 	mut commands: Commands,
 	mut ev_shoot_reader: EventReader<ShootEvent>,
-	mouse_info: Res<MousePosition>,
-	player_info: Query<&Transform, With<Player>>,
+	mouse_pos: Res<MousePosition>,
+	player_info: Query<(&Transform, &RigidBodyPositionComponent), With<Player>>,
 	rapier_parameters: Res<RapierConfiguration>,
+	asset_server: Res<AssetServer>,
+	params: Res<BulletParams>,
 ) {
-	let player_transform = player_info.single();
-	let bullet_offset = 1.0;
+	let (player_transform, player_rb_pos) = player_info.single();
 
 	for _ in ev_shoot_reader.iter() {
 		let direction = Direction {
-			value: Vec2::new(
-				mouse_info.x - player_transform.translation.x,
-				mouse_info.y - player_transform.translation.y,
-			)
-			.normalize(),
+			value: (mouse_pos.0 - player_transform.translation.xy()).normalize(),
 		};
 		commands
 			.spawn_bundle(BulletBundle {
 				tag: BulletTag,
 				speed: Speed {
-					value: BULLET_FORCE_SCALE,
+					value: params.bullet_force_scale,
 				},
 				direction: direction.clone(),
 				sprite: SpriteBundle {
+					texture: asset_server.load("physics_example/bullet.png"),
 					sprite: Sprite {
-						color: Color::rgb(0.75, 0.75, 0.75),
+						custom_size: Some(Vec2::new(1.0, 1.0)),
 						..Default::default()
 					},
 					transform: Transform {
 						translation: player_transform.translation,
+						rotation: player_transform.rotation,
 						scale: Vec3::new(15.0, 15.0, 0.0),
 						..Default::default()
 					},
@@ -116,14 +132,14 @@ fn shoot(
 				},
 				rigidbody: RigidBodyBundle {
 					position: RigidBodyPosition {
-						position: (player_transform.translation.xy() / rapier_parameters.scale
-							+ direction.value * bullet_offset)
-							.into(),
+						position: player_rb_pos.position.translation
+							* Isometry::from(direction.value * params.bullet_offset)
+							* Isometry::rotation((direction.value.y / direction.value.x).atan()),
 						..Default::default()
 					}
 					.into(),
 					forces: RigidBodyForces {
-						force: (direction.value * BULLET_FORCE_SCALE).into(),
+						force: (direction.value * params.bullet_force_scale).into(),
 						..Default::default()
 					}
 					.into(),

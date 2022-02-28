@@ -1,7 +1,9 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::RegisterInspectable;
 use bevy_rapier2d::prelude::*;
 
 mod input;
+mod inventory;
 mod physics;
 mod player;
 mod scene;

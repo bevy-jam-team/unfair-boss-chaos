@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use bevy::{math::Vec3Swizzles, prelude::*};
 use bevy_rapier2d::prelude::*;
 
@@ -99,7 +97,6 @@ fn shoot(
 	mut ev_shoot_reader: EventReader<ShootEvent>,
 	mouse_pos: Res<MousePosition>,
 	player_info: Query<(&Transform, &RigidBodyPositionComponent), With<Player>>,
-	rapier_parameters: Res<RapierConfiguration>,
 	asset_server: Res<AssetServer>,
 	params: Res<BulletParams>,
 ) {

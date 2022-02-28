@@ -25,7 +25,7 @@ pub fn spawn_player(
 ) {
 	info!("SPAWN_PLAYER");
 
-	// spawn player sprite with physics attached and initial torque
+	// spawn player sprite with physics attached
 	commands
 		.spawn_bundle(SpriteBundle {
 			texture: asset_server.load("physics_example/player.png"),
@@ -36,11 +36,7 @@ pub fn spawn_player(
 			..Default::default()
 		})
 		.insert_bundle(RigidBodyBundle {
-			position: Vec2::new(0.0, 0.0).into(),
-			forces: RigidBodyForces {
-				..Default::default()
-			}
-			.into(),
+			position: Vec2::new(-10.0, 0.0).into(),
 			..Default::default()
 		})
 		.insert(ColliderPositionSync::Discrete)

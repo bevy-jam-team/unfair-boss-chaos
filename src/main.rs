@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+mod enemy;
 mod input;
 mod physics;
 mod player;
@@ -20,5 +21,6 @@ fn main() {
 		.add_plugin(scene::SetupScenePlugin)
 		.add_plugin(shooting::ShootingPlugin)
 		.add_plugin(player::PlayerPlugin)
+		.add_plugin(enemy::EnemyPlugin)
 		.run();
 }

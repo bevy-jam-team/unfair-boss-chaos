@@ -52,12 +52,135 @@ fn spawn_camera_and_scene(mut commands: Commands, rapier_parameters: Res<RapierC
 		.insert_bundle(ColliderBundle {
 			position: Vec2::ZERO.into(),
 			shape: ColliderShapeComponent(ColliderShape::cuboid(
-				50.0 / rapier_parameters.scale,
-				10.0 / rapier_parameters.scale,
+				25.0 / rapier_parameters.scale,
+				5.0 / rapier_parameters.scale,
 			)),
 			..Default::default()
 		})
 		.insert(ColliderPositionSync::Discrete);
 
-	// TODO: spawn more level assets
+	// wall top
+	commands
+		.spawn_bundle(SpriteBundle {
+			sprite: Sprite {
+				color: Color::rgb(0.0, 0.0, 0.0),
+				custom_size: Some(Vec2::new(700.0, 10.0)),
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.insert_bundle(RigidBodyBundle {
+			body_type: RigidBodyType::Static.into(),
+			position: RigidBodyPosition {
+				position: Isometry::translation(0.0, 200.0 / rapier_parameters.scale),
+				..Default::default()
+			}
+			.into(),
+			..Default::default()
+		})
+		.insert_bundle(ColliderBundle {
+			position: Vec2::ZERO.into(),
+			shape: ColliderShapeComponent(ColliderShape::cuboid(
+				350.0 / rapier_parameters.scale,
+				5.0 / rapier_parameters.scale,
+			)),
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete);
+
+	// wall left
+	let size_x = 10.0;
+	let size_y = 400.0;
+	commands
+		.spawn_bundle(SpriteBundle {
+			sprite: Sprite {
+				color: Color::rgb(0.0, 0.0, 0.0),
+				custom_size: Some(Vec2::new(size_x, size_y)),
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.insert_bundle(RigidBodyBundle {
+			body_type: RigidBodyType::Static.into(),
+			position: RigidBodyPosition {
+				position: Isometry::translation(-345.0 / rapier_parameters.scale, 0.0),
+				..Default::default()
+			}
+			.into(),
+			..Default::default()
+		})
+		.insert_bundle(ColliderBundle {
+			position: Vec2::ZERO.into(),
+			shape: ColliderShapeComponent(ColliderShape::cuboid(
+				size_x * 0.5 / rapier_parameters.scale,
+				size_y * 0.5 / rapier_parameters.scale,
+			)),
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete);
+
+	// wall bottom
+	let size_x = 500.0;
+	let size_y = 10.0;
+	commands
+		.spawn_bundle(SpriteBundle {
+			sprite: Sprite {
+				color: Color::rgb(0.0, 0.0, 0.0),
+				custom_size: Some(Vec2::new(size_x, size_y)),
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.insert_bundle(RigidBodyBundle {
+			body_type: RigidBodyType::Static.into(),
+			position: RigidBodyPosition {
+				position: Isometry::translation(
+					-350.0 * 0.5 / rapier_parameters.scale,
+					-200.0 / rapier_parameters.scale,
+				),
+				..Default::default()
+			}
+			.into(),
+			..Default::default()
+		})
+		.insert_bundle(ColliderBundle {
+			position: Vec2::ZERO.into(),
+			shape: ColliderShapeComponent(ColliderShape::cuboid(
+				size_x * 0.5 / rapier_parameters.scale,
+				size_y * 0.5 / rapier_parameters.scale,
+			)),
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete);
+
+	// wall right
+	let size_x = 10.0;
+	let size_y = 400.0;
+	commands
+		.spawn_bundle(SpriteBundle {
+			sprite: Sprite {
+				color: Color::rgb(0.0, 0.0, 0.0),
+				custom_size: Some(Vec2::new(size_x, size_y)),
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.insert_bundle(RigidBodyBundle {
+			body_type: RigidBodyType::Static.into(),
+			position: RigidBodyPosition {
+				position: Isometry::translation(345.0 / rapier_parameters.scale, 0.0),
+				..Default::default()
+			}
+			.into(),
+			..Default::default()
+		})
+		.insert_bundle(ColliderBundle {
+			position: Vec2::ZERO.into(),
+			shape: ColliderShapeComponent(ColliderShape::cuboid(
+				size_x * 0.5 / rapier_parameters.scale,
+				size_y * 0.5 / rapier_parameters.scale,
+			)),
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete);
 }

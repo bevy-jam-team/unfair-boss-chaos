@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::input::MousePosition;
-
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -21,7 +19,7 @@ pub struct Player(pub f32);
 pub fn spawn_player(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	rapier_config: ResMut<RapierConfiguration>,
+	rapier_config: Res<RapierConfiguration>,
 ) {
 	info!("SPAWN_PLAYER");
 
@@ -53,14 +51,9 @@ pub fn spawn_player(
 pub fn player_movement(
 	keyboard_input: Res<Input<KeyCode>>,
 	rapier_parameters: Res<RapierConfiguration>,
-	mouse_pos: Res<MousePosition>,
-	mut player_info: Query<(
-		&Player,
-		&mut RigidBodyVelocityComponent,
-		&mut RigidBodyPositionComponent,
-	)>,
+	mut player_info: Query<(&Player, &mut RigidBodyVelocityComponent)>,
 ) {
-	for (player, mut rb_vels, mut rb_pos) in player_info.iter_mut() {
+	for (player, mut rb_vels) in player_info.iter_mut() {
 		let up = keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up);
 		let down = keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down);
 		let left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);

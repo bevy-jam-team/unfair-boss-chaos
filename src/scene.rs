@@ -5,7 +5,10 @@ pub struct SetupScenePlugin;
 
 impl Plugin for SetupScenePlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(spawn_camera_and_scene);
+		app.insert_resource(WindowDescriptor {
+			..Default::default()
+		})
+		.add_startup_system(spawn_camera_and_scene.label("scene"));
 	}
 }
 

@@ -7,6 +7,7 @@ mod physics;
 mod player;
 mod scene;
 mod shooting;
+mod waypoints;
 
 fn main() {
 	// When building for WASM, print panics to the browser console
@@ -22,5 +23,6 @@ fn main() {
 		.add_plugin(shooting::ShootingPlugin)
 		.add_plugin(player::PlayerPlugin)
 		.add_plugin(enemy::EnemyPlugin)
+		.add_plugin(waypoints::WaypointsPlugin)
 		.run();
 }

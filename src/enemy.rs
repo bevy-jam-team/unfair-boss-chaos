@@ -1,10 +1,16 @@
 use std::f32::consts::PI;
 
-use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy::{core::FixedTimestep, math::Vec3Swizzles, prelude::*};
 use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
 use bevy_rapier2d::{na::UnitComplex, prelude::*};
 
-use crate::player::Player;
+use crate::{
+	player::Player,
+	waypoints::{CreatePathEvent, NextWaypoint},
+};
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+pub struct AIUpdateStage;
 
 pub struct EnemyPlugin;
 
@@ -14,7 +20,15 @@ impl Plugin for EnemyPlugin {
 			.add_system_to_stage(CoreStage::Last, spawn_boss_reactive)
 			.add_plugin(InspectorPlugin::<EnemyParams>::new())
 			.add_system(enemy_state_control)
-			.add_system(enemy_movement);
+			.add_system(enemy_movement)
+			.add_stage_after(
+				// runs every 1.5 seconds to update AI stats
+				CoreStage::Update,
+				AIUpdateStage,
+				SystemStage::parallel()
+					.with_run_criteria(FixedTimestep::step(1.5))
+					.with_system(enemy_state_control),
+			);
 	}
 }
 
@@ -47,7 +61,7 @@ struct EnemyParams {
 impl Default for EnemyParams {
 	fn default() -> Self {
 		Self {
-			speed: 20.0,
+			speed: 80.0,
 			rot_offset: -PI / 2.0,
 			attack_dist: 4.0,
 			spawn_pos: Vec2::new(150.0, 0.0),
@@ -84,7 +98,7 @@ pub struct Boss;
 #[derive(Component)]
 pub struct Minion;
 
-#[derive(Inspectable)]
+#[derive(Inspectable, Debug)]
 pub enum EnemyState {
 	IDLE,
 	FLEEING,
@@ -301,66 +315,62 @@ fn enemy_movement(
 			&Transform,
 			&mut RigidBodyVelocityComponent,
 			&mut RigidBodyPositionComponent,
+			&NextWaypoint,
 			&Enemy,
 		),
 		With<Enemy>,
 	>,
-	q_target: Query<&Transform>,
 	params: Res<EnemyParams>,
 	rapier_parameters: Res<RapierConfiguration>,
 	_time: Res<Time>,
 ) {
-	for (transform, mut rb_vel, mut rb_pos, Enemy(state)) in q_enemy.iter_mut() {
-		if let EnemyState::CHASING(Some(entity)) = state {
-			if let Ok(pos) = q_target.get(*entity) {
-				let move_delta = (pos.translation.xy() - transform.translation.xy()).normalize()
-					* params.speed / rapier_parameters.scale;
-				rb_vel.linvel = move_delta.into();
-				rb_pos.0.position.rotation =
-					UnitComplex::from_angle(params.rot_offset - move_delta.angle_between(Vec2::X));
-			}
+	for (transform, mut rb_vel, mut rb_pos, next_wp, Enemy(state)) in q_enemy.iter_mut() {
+		if let EnemyState::CHASING(Some(_entity)) = state {
+			let pos = next_wp.0 .0;
+
+			let move_delta = (pos - transform.translation.xy()).normalize() * params.speed
+				/ rapier_parameters.scale;
+			rb_vel.linvel = move_delta.into();
+			rb_pos.0.position.rotation =
+				UnitComplex::from_angle(params.rot_offset - move_delta.angle_between(Vec2::X));
+		} else {
+			info!("Not moving because in state: {:?}", state);
 		}
 	}
 }
 
 fn enemy_state_control(
-	mut commands: Commands,
-	q_enemy: Query<(Entity, &Transform, &Enemy), With<Enemy>>,
+	mut q_enemy: Query<(Entity, &Transform, &mut Enemy)>,
 	q_player: Query<(Entity, &Transform), With<Player>>,
+	mut create_path_ew: EventWriter<CreatePathEvent>,
 	params: Res<EnemyParams>,
 	_time: Res<Time>,
 ) {
-	for (entity, transform, Enemy(state)) in q_enemy.iter() {
-		info!("Found {:?}", entity);
-		match state {
+	for (entity, transform, mut enemy) in q_enemy.iter_mut() {
+		match enemy.0 {
 			EnemyState::IDLE => {
 				if let Ok((player, _)) = q_player.get_single() {
-					commands
-						.entity(entity)
-						.remove::<Enemy>()
-						.insert(Enemy(EnemyState::CHASING(Some(player))));
+					enemy.0 = EnemyState::CHASING(Some(player));
 				}
 			}
 			EnemyState::FLEEING => todo!(),
 			EnemyState::CHASING(Some(target)) => {
-				if let Ok((player, player_t)) = q_player.get(*target) {
-					let dist = player_t.translation.distance(transform.translation);
-					if dist < params.attack_dist {
-						commands
-							.entity(entity)
-							.remove::<Enemy>()
-							.insert(Enemy(EnemyState::ATTACK(Some(player))));
+				if let Ok((player, player_t)) = q_player.get(target) {
+					let target_pos = player_t.translation.xy();
+					let pos = transform.translation.xy();
+
+					create_path_ew.send(CreatePathEvent(pos, target_pos, entity));
+
+					if target_pos.distance(pos) < params.attack_dist {
+						enemy.0 = EnemyState::ATTACK(Some(player));
 					}
 				}
 			}
 			EnemyState::ATTACK(Some(target)) => {
-				if let Ok((player, player_t)) = q_player.get(*target) {
+				if let Ok((player, player_t)) = q_player.get(target) {
 					let dist = player_t.translation.distance(transform.translation);
 					if dist > params.attack_dist {
-						commands
-							.entity(entity)
-							.remove::<Enemy>()
-							.insert(Enemy(EnemyState::CHASING(Some(player))));
+						enemy.0 = EnemyState::CHASING(Some(player));
 					}
 				}
 			}

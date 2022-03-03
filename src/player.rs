@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::physics::PhysicsGlobals;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -20,6 +22,7 @@ pub fn spawn_player(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	rapier_config: Res<RapierConfiguration>,
+	physics_globals: Res<PhysicsGlobals>,
 ) {
 	info!("SPAWN_PLAYER");
 
@@ -35,6 +38,7 @@ pub fn spawn_player(
 		})
 		.insert_bundle(RigidBodyBundle {
 			position: Vec2::new(-10.0, 0.0).into(),
+
 			..Default::default()
 		})
 		.insert(ColliderPositionSync::Discrete)
@@ -42,6 +46,11 @@ pub fn spawn_player(
 			position: Vec2::ZERO.into(),
 			// Since the physics world is scaled, we divide pixel size by it to get the collider size
 			shape: ColliderShapeComponent(ColliderShape::ball(10.0 / rapier_config.scale)),
+			flags: ColliderFlags {
+				collision_groups: InteractionGroups::new(physics_globals.player_mask, u32::MAX),
+				..Default::default()
+			}
+			.into(),
 			..Default::default()
 		})
 		.insert(Player(PLAYER_SPEED_VALUE));

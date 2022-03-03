@@ -5,6 +5,7 @@ use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
 use bevy_rapier2d::{na::UnitComplex, prelude::*};
 
 use crate::{
+	physics::PhysicsGlobals,
 	player::Player,
 	waypoints::{CreatePathEvent, NextWaypoint},
 };
@@ -121,6 +122,7 @@ fn spawn_boss_reactive(
 	mut commands: Commands,
 	params: Res<EnemyParams>,
 	rapier_config: ResMut<RapierConfiguration>,
+	physics_globals: Res<PhysicsGlobals>,
 	mut query: Query<Entity, With<Boss>>,
 ) {
 	if !params.is_changed() {
@@ -130,6 +132,11 @@ fn spawn_boss_reactive(
 	if let Ok(entity) = query.get_single_mut() {
 		commands.entity(entity).despawn_recursive();
 	}
+
+	let collider_flags = ColliderFlags {
+		collision_groups: InteractionGroups::new(physics_globals.enemy_mask, u32::MAX),
+		..Default::default()
+	};
 
 	info!("SPAWN_BOSS");
 	commands
@@ -157,6 +164,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: Vec2::ZERO.into(),
 					// Since the physics world is scaled, we divide pixel size by it to get the collider size
 					shape: ColliderShapeComponent(ColliderShape::cuboid(
@@ -178,6 +186,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: (
 						params.left_arm_pos / rapier_config.scale,
 						params.left_arm_rot,
@@ -203,6 +212,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: (
 						params.right_arm_pos / rapier_config.scale,
 						params.right_arm_rot,
@@ -228,6 +238,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: (
 						params.left_shield_pos / rapier_config.scale,
 						params.left_shield_rot,
@@ -253,6 +264,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: (
 						params.right_shield_pos / rapier_config.scale,
 						params.right_shield_rot,
@@ -278,6 +290,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.clone().into(),
 					position: (params.left_weapon_pos / rapier_config.scale).into(),
 					// Since the physics world is scaled, we divide pixel size by it to get the collider size
 					shape: ColliderShapeComponent(ColliderShape::cuboid(
@@ -299,6 +312,7 @@ fn spawn_boss_reactive(
 				})
 				.insert(ColliderPositionSync::Discrete)
 				.insert_bundle(ColliderBundle {
+					flags: collider_flags.into(),
 					position: (params.right_weapon_pos / rapier_config.scale).into(),
 					// Since the physics world is scaled, we divide pixel size by it to get the collider size
 					shape: ColliderShapeComponent(ColliderShape::cuboid(
@@ -327,6 +341,7 @@ fn enemy_movement(
 	q_player_t: Query<&Transform, With<Player>>,
 	params: Res<EnemyParams>,
 	rapier_parameters: Res<RapierConfiguration>,
+	physics_globals: Res<PhysicsGlobals>,
 	query_pipeline: Res<QueryPipeline>,
 	collider_query: QueryPipelineColliderComponentsQuery,
 	_time: Res<Time>,
@@ -344,8 +359,13 @@ fn enemy_movement(
 
 				rb_vel.linvel = move_delta.into();
 
-				let angle = if !raycast_between(pos, player_pos, &query_pipeline, &collider_set)
-					&& dir_player.length() < params.visibility_dist
+				let angle = if !raycast_between(
+					pos,
+					player_pos,
+					&query_pipeline,
+					&physics_globals,
+					&collider_set,
+				) && dir_player.length() < params.visibility_dist
 				{
 					dir_player.angle_between(Vec2::X)
 				} else {
@@ -375,21 +395,25 @@ fn raycast_between(
 	pos: Vec2,
 	target: Vec2,
 	query_pipeline: &Res<QueryPipeline>,
+	physics_globals: &Res<PhysicsGlobals>,
 	collider_set: &QueryPipelineColliderComponentsSet,
 ) -> bool {
 	let dir = target - pos;
 	let ray = Ray::new(pos.into(), dir.into());
-	if let None = query_pipeline.cast_ray(
+	if let Some(_) = query_pipeline.cast_ray(
 		collider_set,
 		&ray,
 		1.0,
 		true,
-		InteractionGroups::all(),
-		Some(&|collider| true),
+		InteractionGroups::new(
+			u32::MAX,
+			u32::MAX - physics_globals.player_mask - physics_globals.enemy_mask,
+		),
+		None,
 	) {
-		return false;
-	} else {
 		return true;
+	} else {
+		return false;
 	}
 }
 
@@ -398,6 +422,7 @@ fn enemy_state_control(
 	q_player: Query<(Entity, &Transform), With<Player>>,
 	mut create_path_ew: EventWriter<CreatePathEvent>,
 	query_pipeline: Res<QueryPipeline>,
+	physics_globals: Res<PhysicsGlobals>,
 	params: Res<EnemyParams>,
 	collider_query: QueryPipelineColliderComponentsQuery,
 	_time: Res<Time>,
@@ -420,7 +445,13 @@ fn enemy_state_control(
 					create_path_ew.send(CreatePathEvent(pos, player_pos, entity));
 
 					if dist < params.attack_dist {
-						if !raycast_between(pos, player_pos, &query_pipeline, &collider_set) {
+						if !raycast_between(
+							pos,
+							player_pos,
+							&query_pipeline,
+							&physics_globals,
+							&collider_set,
+						) {
 							enemy.0 = EnemyState::ATTACK(Some(player));
 						}
 					}

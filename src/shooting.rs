@@ -8,11 +8,12 @@ pub struct ShootingPlugin;
 
 impl Plugin for ShootingPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_event::<ShootEvent>()
-			.add_system_set(
+		app.add_event::<ShootEvent>() // TODO: handle on bullet hit event
+			.add_system_set_to_stage(
+				CoreStage::PostUpdate,
 				SystemSet::new()
 					.after("input")
-					.with_system(check_for_shoot_event)
+					.with_system(check_for_shoot_event) // TODO: check for shoot event long press
 					.label("check_for_shoot_event")
 					.with_system(shoot)
 					.label("shoot"),

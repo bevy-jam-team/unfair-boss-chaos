@@ -38,7 +38,9 @@ struct EnemyParams {
 	speed: f32,
 	rot_offset: f32,
 	spawn_pos: Vec2,
+	follow_threshold: f32,
 	attack_dist: f32,
+	visibility_dist: f32,
 	body_scale: Vec2,
 	left_arm_pos: Vec2,
 	left_arm_scale: Vec2,
@@ -63,7 +65,9 @@ impl Default for EnemyParams {
 		Self {
 			speed: 80.0,
 			rot_offset: -PI / 2.0,
-			attack_dist: 4.0,
+			attack_dist: 140.0,
+			follow_threshold: 30.0,
+			visibility_dist: 400.0,
 			spawn_pos: Vec2::new(150.0, 0.0),
 			body_scale: Vec2::new(100.0, 100.0),
 			// arms
@@ -320,22 +324,72 @@ fn enemy_movement(
 		),
 		With<Enemy>,
 	>,
+	q_player_t: Query<&Transform, With<Player>>,
 	params: Res<EnemyParams>,
 	rapier_parameters: Res<RapierConfiguration>,
+	query_pipeline: Res<QueryPipeline>,
+	collider_query: QueryPipelineColliderComponentsQuery,
 	_time: Res<Time>,
 ) {
+	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
 	for (transform, mut rb_vel, mut rb_pos, next_wp, Enemy(state)) in q_enemy.iter_mut() {
-		if let EnemyState::CHASING(Some(_entity)) = state {
-			let pos = next_wp.0 .0;
+		let pos = transform.translation.xy();
+		match state {
+			EnemyState::CHASING(Some(entity)) => {
+				let target_pos = next_wp.0 .0;
+				let player_pos = q_player_t.get(*entity).unwrap().translation.xy();
+				let dir = target_pos - pos;
+				let dir_player = player_pos - pos;
+				let move_delta = dir.normalize() * params.speed / rapier_parameters.scale;
 
-			let move_delta = (pos - transform.translation.xy()).normalize() * params.speed
-				/ rapier_parameters.scale;
-			rb_vel.linvel = move_delta.into();
-			rb_pos.0.position.rotation =
-				UnitComplex::from_angle(params.rot_offset - move_delta.angle_between(Vec2::X));
-		} else {
-			info!("Not moving because in state: {:?}", state);
+				rb_vel.linvel = move_delta.into();
+
+				let angle = if !raycast_between(pos, player_pos, &query_pipeline, &collider_set)
+					&& dir_player.length() < params.visibility_dist
+				{
+					dir_player.angle_between(Vec2::X)
+				} else {
+					move_delta.angle_between(Vec2::X)
+				};
+
+				rb_pos.0.position.rotation = UnitComplex::from_angle(params.rot_offset - angle);
+			}
+			EnemyState::ATTACK(Some(entity)) => {
+				let player_pos = q_player_t.get(*entity).unwrap().translation.xy();
+				let dir = player_pos - transform.translation.xy();
+				let move_delta = dir.normalize() * params.speed / rapier_parameters.scale;
+
+				rb_vel.linvel = Vec2::ZERO.into();
+				rb_pos.0.position.rotation =
+					UnitComplex::from_angle(params.rot_offset - move_delta.angle_between(Vec2::X));
+			}
+			_ => {
+				rb_vel.linvel = Vec2::ZERO.into();
+				info!("Not moving because in state: {:?}", state);
+			}
 		}
+	}
+}
+
+fn raycast_between(
+	pos: Vec2,
+	target: Vec2,
+	query_pipeline: &Res<QueryPipeline>,
+	collider_set: &QueryPipelineColliderComponentsSet,
+) -> bool {
+	let dir = target - pos;
+	let ray = Ray::new(pos.into(), dir.into());
+	if let None = query_pipeline.cast_ray(
+		collider_set,
+		&ray,
+		1.0,
+		true,
+		InteractionGroups::all(),
+		Some(&|collider| true),
+	) {
+		return false;
+	} else {
+		return true;
 	}
 }
 
@@ -343,9 +397,12 @@ fn enemy_state_control(
 	mut q_enemy: Query<(Entity, &Transform, &mut Enemy)>,
 	q_player: Query<(Entity, &Transform), With<Player>>,
 	mut create_path_ew: EventWriter<CreatePathEvent>,
+	query_pipeline: Res<QueryPipeline>,
 	params: Res<EnemyParams>,
+	collider_query: QueryPipelineColliderComponentsQuery,
 	_time: Res<Time>,
 ) {
+	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
 	for (entity, transform, mut enemy) in q_enemy.iter_mut() {
 		match enemy.0 {
 			EnemyState::IDLE => {
@@ -356,13 +413,16 @@ fn enemy_state_control(
 			EnemyState::FLEEING => todo!(),
 			EnemyState::CHASING(Some(target)) => {
 				if let Ok((player, player_t)) = q_player.get(target) {
-					let target_pos = player_t.translation.xy();
+					let player_pos = player_t.translation.xy();
 					let pos = transform.translation.xy();
+					let dist = player_pos.distance(pos);
 
-					create_path_ew.send(CreatePathEvent(pos, target_pos, entity));
+					create_path_ew.send(CreatePathEvent(pos, player_pos, entity));
 
-					if target_pos.distance(pos) < params.attack_dist {
-						enemy.0 = EnemyState::ATTACK(Some(player));
+					if dist < params.attack_dist {
+						if !raycast_between(pos, player_pos, &query_pipeline, &collider_set) {
+							enemy.0 = EnemyState::ATTACK(Some(player));
+						}
 					}
 				}
 			}

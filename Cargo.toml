@@ -11,3 +11,7 @@ bevy_rapier2d = { version = "0.12.1", features = [ "simd-stable", "wasm-bindgen"
 bevy-inspector-egui = "0.8"
 console_error_panic_hook = "0.1"
 bevy_prototype_debug_lines = "0.6"
+
+[profile.release]
+opt-level = 's'
+lto = "thin"

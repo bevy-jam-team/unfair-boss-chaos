@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+mod enemy;
 mod input;
 mod physics;
 mod player;
 mod scene;
 mod shooting;
+mod waypoints;
 
 fn main() {
 	// When building for WASM, print panics to the browser console
@@ -15,11 +17,12 @@ fn main() {
 		.add_plugins(DefaultPlugins)
 		.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-		.add_plugin(RapierRenderPlugin)
 		.add_plugin(input::InputPlugin)
 		.add_plugin(physics::SetupPhysicsPlugin)
 		.add_plugin(scene::SetupScenePlugin)
 		.add_plugin(shooting::ShootingPlugin)
 		.add_plugin(player::PlayerPlugin)
+		.add_plugin(enemy::EnemyPlugin)
+		.add_plugin(waypoints::WaypointsPlugin)
 		.run();
 }

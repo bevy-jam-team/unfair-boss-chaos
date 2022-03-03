@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::physics::PhysicsGlobals;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -19,40 +21,38 @@ pub struct Player(pub f32);
 pub fn spawn_player(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	rapier_config: ResMut<RapierConfiguration>,
+	rapier_config: Res<RapierConfiguration>,
+	physics_globals: Res<PhysicsGlobals>,
 ) {
-	let scale_inv = 10.0;
-	let sprite_size_x = 126.0 / scale_inv; // Make sure aspect ratio matches player.png!
-	let sprite_size_y = 100.0 / scale_inv;
+	info!("SPAWN_PLAYER");
 
-	// Since the physics world is scaled, we divide pixel size by it to get the collider size
-	let collider_size_x = sprite_size_x / rapier_config.scale;
-	let collider_size_y = sprite_size_y / rapier_config.scale;
-
-	// spawn player sprite with physics attached and initial torque
+	// spawn player sprite with physics attached
 	commands
 		.spawn_bundle(SpriteBundle {
 			texture: asset_server.load("physics_example/player.png"),
 			sprite: Sprite {
-				custom_size: Some(Vec2::new(sprite_size_x, sprite_size_y)),
+				custom_size: Some(Vec2::new(12.6, 10.0)),
 				..Default::default()
 			},
 			..Default::default()
 		})
 		.insert_bundle(RigidBodyBundle {
-			position: Vec2::new(0.0, 0.0).into(),
-			forces: RigidBodyForces {
-				torque: 1.0,
+			position: Vec2::new(-10.0, 0.0).into(),
+
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete)
+		.insert_bundle(ColliderBundle {
+			position: Vec2::ZERO.into(),
+			// Since the physics world is scaled, we divide pixel size by it to get the collider size
+			shape: ColliderShapeComponent(ColliderShape::ball(10.0 / rapier_config.scale)),
+			flags: ColliderFlags {
+				collision_groups: InteractionGroups::new(physics_globals.player_mask, u32::MAX),
 				..Default::default()
 			}
 			.into(),
 			..Default::default()
 		})
-		.insert_bundle(ColliderBundle {
-			position: [collider_size_x / 2.0, collider_size_y / 2.0].into(),
-			..Default::default()
-		})
-		.insert(ColliderPositionSync::Discrete)
 		.insert(Player(PLAYER_SPEED_VALUE));
 }
 
@@ -63,10 +63,10 @@ pub fn player_movement(
 	mut player_info: Query<(&Player, &mut RigidBodyVelocityComponent)>,
 ) {
 	for (player, mut rb_vels) in player_info.iter_mut() {
-		let up = keyboard_input.pressed(KeyCode::W) || keyboard_input.pressed(KeyCode::Up);
-		let down = keyboard_input.pressed(KeyCode::S) || keyboard_input.pressed(KeyCode::Down);
-		let left = keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left);
-		let right = keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right);
+		let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
+		let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
+		let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+		let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
 
 		let x_axis = -(left as i8) + right as i8;
 		let y_axis = -(down as i8) + up as i8;

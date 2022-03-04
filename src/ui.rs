@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
 	enemy::{Boss, BossSpawnEvent},
-	game::{run_when_enter_playing_state, GameGlobals, GameState, Health, LeaderboardEvent},
+	game::{GameGlobals, GameState, Health, LeaderboardEvent},
 	player::{Player, PlayerSpawnEvent},
 	scene::MainCamera,
 };
@@ -20,6 +20,7 @@ impl Plugin for UIPlugin {
 		.insert_resource(UIGlobals::default())
 		.add_startup_system(spawn_ui_camera)
 		.add_system(spawn_health_bars)
+		.add_system_set(SystemSet::on_update(GameState::GameOver).with_system(spawn_leaderboard))
 		.add_system_set(SystemSet::on_update(GameState::Playing).with_system(update_health_bars))
 		.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(reset_state));
 	}
@@ -51,8 +52,7 @@ fn spawn_health_bars(
 	asset_server: Res<AssetServer>,
 	q_player: Query<(Entity, &Health), With<Player>>,
 	q_boss: Query<(Entity, &Health), With<Boss>>,
-	q_ui_camera: Query<&OrthographicProjection, Without<MainCamera>>,
-	mut globals: ResMut<UIGlobals>,
+	globals: ResMut<UIGlobals>,
 	_ev_reader_player: EventReader<PlayerSpawnEvent>,
 	_ev_reader_boss: EventReader<BossSpawnEvent>,
 ) {
@@ -175,7 +175,42 @@ fn spawn_leaderboard(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	game_globals: Res<GameGlobals>,
-	q_ui_camera: Query<&OrthographicProjection, Without<MainCamera>>,
-	_ev_reader_player: EventReader<LeaderboardEvent>,
+	mut ev_reader: EventReader<LeaderboardEvent>,
 ) {
+	if ev_reader.iter().count() == 0 {
+		return;
+	}
+
+	commands
+		.spawn_bundle(NodeBundle {
+			style: Style {
+				size: Size::new(Val::Px(400.0), Val::Px(1000.0)),
+				margin: Rect::all(Val::Auto),
+				justify_content: JustifyContent::Center,
+				align_items: AlignItems::FlexEnd,
+				position_type: PositionType::Relative,
+
+				position: Rect::all(Val::Auto),
+				..Default::default()
+			},
+			color: Color::GRAY.into(),
+			..Default::default()
+		})
+		.with_children(|parent| {
+			for score in &game_globals.scores {
+				let text = format!("{} for: {}", score.score, score.guest);
+				parent.spawn_bundle(TextBundle {
+					text: Text::with_section(
+						text,
+						TextStyle {
+							font: asset_server.load("fonts/PressStart2P-Regular.ttf"),
+							font_size: 20.0,
+							color: Color::rgb(0.9, 0.9, 0.9),
+						},
+						Default::default(),
+					),
+					..Default::default()
+				});
+			}
+		});
 }

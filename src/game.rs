@@ -109,14 +109,49 @@ fn upload_highscores(globals: Res<GameGlobals>, thread_pool: Res<AsyncComputeTas
 
 fn display_highscores_when_loaded(
 	mut commands: Commands,
+	asset_server: Res<AssetServer>,
 	mut globals: ResMut<GameGlobals>,
 	mut transform_tasks: Query<(Entity, &mut Task<Vec<LeaderboardScore>>)>,
+	mut ev_writer: EventWriter<LeaderboardEvent>,
 ) {
 	for (entity, mut task) in transform_tasks.iter_mut() {
 		if let Some(scores) = future::block_on(future::poll_once(&mut *task)) {
-			globals.scores = scores;
 			// Task is complete, so remove task component from entity
 			commands.entity(entity).remove::<Task<Transform>>();
+			ev_writer.send(LeaderboardEvent);
+
+			commands
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Px(400.0), Val::Px(1000.0)),
+						margin: Rect::all(Val::Auto),
+						justify_content: JustifyContent::Center,
+						align_items: AlignItems::FlexEnd,
+						position_type: PositionType::Relative,
+
+						position: Rect::all(Val::Auto),
+						..Default::default()
+					},
+					color: Color::GRAY.into(),
+					..Default::default()
+				})
+				.with_children(|parent| {
+					for score in &scores {
+						let text = format!("{} for: {}", score.score, score.guest);
+						parent.spawn_bundle(TextBundle {
+							text: Text::with_section(
+								text,
+								TextStyle {
+									font: asset_server.load("fonts/PressStart2P-Regular.ttf"),
+									font_size: 20.0,
+									color: Color::rgb(0.9, 0.9, 0.9),
+								},
+								Default::default(),
+							),
+							..Default::default()
+						});
+					}
+				});
 		}
 	}
 }

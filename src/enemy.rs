@@ -24,18 +24,9 @@ impl Plugin for EnemyPlugin {
 				SystemSet::on_update(GameState::Playing)
 					.with_system(enemy_movement)
 					.with_system(enemy_state_control),
-			)
-			//.register_inspectable::<Enemy>()
-			//.add_plugin(InspectorPlugin::<EnemyParams>::new())
-			.insert_resource(EnemyParams::default())
-			.add_stage_after(
-				// runs every 1.5 seconds to update AI stats
-				CoreStage::Update,
-				AIUpdateStage,
-				SystemStage::parallel()
-					.with_run_criteria(FixedTimestep::step(1.5))
-					.with_system(enemy_state_control),
 			);
+		//.register_inspectable::<Enemy>()
+		//.add_plugin(InspectorPlugin::<EnemyParams>::new())
 	}
 }
 
@@ -429,10 +420,6 @@ fn enemy_state_control(
 	state: Res<State<GameState>>,
 	_time: Res<Time>,
 ) {
-	if *state.current() != GameState::Playing {
-		return;
-	}
-
 	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
 	for (entity, transform, mut enemy) in q_enemy.iter_mut() {
 		match enemy.0 {

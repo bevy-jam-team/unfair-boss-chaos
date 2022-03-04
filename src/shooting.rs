@@ -192,10 +192,11 @@ fn shoot(
 
 /// A system that listens to contact events triggered only by bullets
 fn check_bullet_hit(
+	mut commands: Commands,
 	mut contact_events: EventReader<ContactEvent>,
 	q_bullet: Query<(Entity, &Bullet)>,
-	mut commands: Commands,
 	mut q_health: Query<&mut Health>,
+	q_parent: Query<&Parent>,
 	params: Res<BulletParams>,
 	time: Res<Time>,
 ) {
@@ -208,6 +209,19 @@ fn check_bullet_hit(
 				} else if let Ok(mut health) = q_health.get_mut(h2.entity()) {
 					health.0 -= dmg;
 					info!("DAMAGE -> HEALTH {}", health.0);
+				} else if let Ok(Parent(parent_e)) = q_parent.get(h1.entity()) {
+					// modify health on parent
+					if let Ok(mut health) = q_health.get_mut(*parent_e) {
+						health.0 -= dmg;
+					} else if let Ok(Parent(parent_e)) = q_parent.get(h2.entity()) {
+						if let Ok(mut health) = q_health.get_mut(*parent_e) {
+							health.0 -= dmg;
+						}
+					}
+				} else if let Ok(Parent(parent_e)) = q_parent.get(h2.entity()) {
+					if let Ok(mut health) = q_health.get_mut(*parent_e) {
+						health.0 -= dmg;
+					}
 				}
 
 				commands.entity(e).insert(DespawnTimer(

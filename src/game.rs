@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::Response;
 
-use crate::player::Player;
+use crate::{
+	enemy::{Boss, EnemyParams},
+	player::Player,
+};
 
 /// Plugin that handles when game restarts and tracks the player's score.
 /// The game restarts when player dies, so player's health is tracked
@@ -23,6 +26,8 @@ impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(GameGlobals {
 			level: 1,
+			minions: 0,
+			min_upgrade_health: 20.0,
 			time_until_restart: Duration::from_secs(15),
 			scores: vec![],
 			..Default::default()
@@ -32,7 +37,8 @@ impl Plugin for GamePlugin {
 		.add_system_set(
 			SystemSet::on_update(GameState::Playing)
 				.with_system(restart_game_when_player_dies)
-				.with_system(update_score),
+				.with_system(update_score)
+				.with_system(update_level_over_time),
 		)
 		.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(reset_game_globals))
 		.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(teardown))
@@ -54,9 +60,11 @@ pub enum GameState {
 
 #[derive(Default)]
 pub struct GameGlobals {
-	pub score: u32,
 	pub level: u32,
+	pub score: u32,
 	pub time_started: Duration,
+	pub minions: u32,
+	pub min_upgrade_health: f32,
 	pub scores: Vec<LeaderboardScore>,
 	pub time_stopped: Duration,
 	pub time_until_restart: Duration,
@@ -69,6 +77,7 @@ fn reset_game_globals(mut globals: ResMut<GameGlobals>, time: Res<Time>) {
 	globals.time_started = time.time_since_startup();
 	globals.level = 1;
 	globals.score = 0;
+	globals.minions = 0;
 }
 
 pub fn run_when_enter_playing_state(
@@ -80,6 +89,22 @@ pub fn run_when_enter_playing_state(
 		ShouldRun::YesAndCheckAgain
 	} else {
 		ShouldRun::NoAndCheckAgain
+	}
+}
+
+fn update_level_over_time(
+	mut q_health: Query<&mut Health, With<Boss>>,
+	enemy_params: ResMut<EnemyParams>,
+	mut state: ResMut<State<GameState>>,
+	time: Res<Time>,
+	mut globals: ResMut<GameGlobals>,
+) {
+	if let Ok(mut health) = q_health.get_single_mut() {
+		if health.0 < globals.min_upgrade_health {
+			health.0 = enemy_params.start_health;
+			globals.level += 1;
+			globals.minions += globals.level;
+		}
 	}
 }
 
@@ -101,7 +126,8 @@ fn upload_highscores(globals: Res<GameGlobals>, thread_pool: Res<AsyncComputeTas
 	// publish highscores to web api
 	let score = globals.score;
 	thread_pool.spawn(async move {
-		let _ = Leaderboard::add_score(score, "player1").await;
+		let _ = Leaderboard::add_score(score, format!("player-{}", rand::random::<u32>()).as_str())
+			.await;
 		let res = Leaderboard::leaderboard().await.unwrap();
 		res.scores
 	});
@@ -179,6 +205,9 @@ impl Leaderboard {
 	}
 
 	pub async fn add_score(score: u32, user: &str) -> Result<(), JsValue> {
+		let _ = web_sys::window()
+			.unwrap()
+			.alert_with_message(format!("You died... well it's unfair because the boss never dies!!!.\n\nYou scored {} Points under the name {}\n\nCheck out the leaderboard at https://gamejolt.com/dashboard/games/697047/api/scoreboards/705726", score, user).as_str());
 		Self::fetch_api(
 			"/scores/add",
 			Some(format!(

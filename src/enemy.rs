@@ -5,7 +5,7 @@ use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{na::UnitComplex, prelude::*};
 
 use crate::{
-	game::{GameState, Health},
+	game::{GameGlobals, GameState, Health},
 	physics::PhysicsGlobals,
 	player::Player,
 	shooting::ShootEvent,
@@ -26,9 +26,11 @@ impl Plugin for EnemyPlugin {
 			.add_system_set(
 				SystemSet::on_update(GameState::Playing)
 					.with_system(enemy_movement)
-					.with_system(enemy_state_control),
+					.with_system(enemy_state_control)
+					.with_system(spawn_minions),
 			)
-			.insert_resource(EnemyParams::default());
+			.insert_resource(EnemyParams::default())
+			.insert_resource(MinionParams::default());
 		//.register_inspectable::<Enemy>()
 		//.add_plugin(InspectorPlugin::<EnemyParams>::new())
 	}
@@ -36,14 +38,14 @@ impl Plugin for EnemyPlugin {
 
 /// Values we might want to tweak and that are used to define specific properties of the entities.
 #[derive(Inspectable)]
-struct EnemyParams {
+pub struct EnemyParams {
 	speed: f32,
 	rot_offset: f32,
 	spawn_pos: Vec2,
 	follow_threshold: f32,
 	attack_dist: f32,
 	visibility_dist: f32,
-	start_health: f32,
+	pub start_health: f32,
 	body_scale: Vec2,
 	left_arm_pos: Vec2,
 	left_arm_scale: Vec2,
@@ -68,7 +70,7 @@ impl Default for EnemyParams {
 		Self {
 			speed: 80.0,
 			rot_offset: -PI / 2.0,
-			attack_dist: 140.0,
+			attack_dist: 200.0,
 			start_health: 100.0,
 			follow_threshold: 30.0,
 			visibility_dist: 400.0,
@@ -93,6 +95,37 @@ impl Default for EnemyParams {
 			left_weapon_scale: Vec2::new(10.0, 30.0),
 			right_weapon_pos: Vec2::new(75.0, 20.0),
 			right_weapon_scale: Vec2::new(10.0, 30.0),
+		}
+	}
+}
+
+#[derive(Inspectable)]
+struct MinionParams {
+	speed: f32,
+	rot_offset: f32,
+	spawn_pos: Vec2,
+	follow_threshold: f32,
+	attack_dist: f32,
+	visibility_dist: f32,
+	start_health: f32,
+	body_scale: Vec2,
+	weapon_pos: Vec2,
+	weapon_scale: Vec2,
+}
+
+impl Default for MinionParams {
+	fn default() -> Self {
+		Self {
+			speed: 160.0,
+			rot_offset: -PI / 2.0,
+			attack_dist: 140.0,
+			start_health: 50.0,
+			follow_threshold: 30.0,
+			visibility_dist: 400.0,
+			spawn_pos: Vec2::new(150.0, 0.0),
+			body_scale: Vec2::new(50.0, 50.0),
+			weapon_pos: Vec2::new(-75.0, 20.0),
+			weapon_scale: Vec2::new(10.0, 30.0),
 		}
 	}
 }
@@ -318,6 +351,64 @@ fn spawn_boss(
 		})
 		.insert(Enemy(EnemyState::IDLE))
 		.insert(Boss)
+		.insert(Health(params.start_health))
+		.id();
+
+	ev_writer.send(BossSpawnEvent);
+}
+
+fn spawn_minions(
+	mut commands: Commands,
+	params: Res<MinionParams>,
+	game_globals: Res<GameGlobals>,
+	rapier_config: ResMut<RapierConfiguration>,
+	physics_globals: Res<PhysicsGlobals>,
+	q_minions: Query<&Minion>,
+	mut ev_writer: EventWriter<BossSpawnEvent>,
+	_time: Res<Time>,
+) {
+	if q_minions.iter().count() as u32 >= game_globals.minions {
+		return;
+	}
+
+	let collider_flags = ColliderFlags {
+		collision_groups: InteractionGroups::new(physics_globals.enemy_mask, u32::MAX),
+		..Default::default()
+	};
+
+	info!("SPAWN_MINION");
+	commands
+		.spawn_bundle(RigidBodyBundle {
+			position: (params.spawn_pos / rapier_config.scale).into(),
+			..Default::default()
+		})
+		.insert(Transform::from_rotation(Quat::from_euler(
+			EulerRot::XYZ,
+			0.0,
+			0.0,
+			-PI / 2.0,
+		)))
+		.insert_bundle(SpriteBundle {
+			sprite: Sprite {
+				custom_size: Some(params.body_scale),
+				color: Color::RED,
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.insert(ColliderPositionSync::Discrete)
+		.insert_bundle(ColliderBundle {
+			flags: collider_flags.clone().into(),
+			position: Vec2::ZERO.into(),
+			// Since the physics world is scaled, we divide pixel size by it to get the collider size
+			shape: ColliderShapeComponent(ColliderShape::cuboid(
+				params.body_scale.x * 0.5 / rapier_config.scale,
+				params.body_scale.y * 0.5 / rapier_config.scale,
+			)),
+			..Default::default()
+		})
+		.insert(Enemy(EnemyState::IDLE))
+		.insert(Minion)
 		.insert(Health(params.start_health))
 		.id();
 

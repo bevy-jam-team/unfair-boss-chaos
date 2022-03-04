@@ -8,25 +8,26 @@ pub struct SetupScenePlugin;
 impl Plugin for SetupScenePlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(WindowDescriptor::default())
+			.add_startup_system(spawn_camera)
 			.add_system_set(
-				SystemSet::on_enter(GameState::Playing)
-					.with_system(spawn_camera_and_scene.label("scene")),
+				SystemSet::on_enter(GameState::Playing).with_system(spawn_scene.label("scene")),
 			);
 	}
 }
 
-/// Startup system. Spawns all the things that are necessary to render the scene
-fn spawn_camera_and_scene(
-	mut commands: Commands,
-	rapier_parameters: Res<RapierConfiguration>,
-	q_camera: Query<&Camera>,
-) {
-	info!("SPAWN_CAMERA_AND_SCENE");
+#[derive(Component)]
+pub struct MainCamera;
 
-	// camera
-	if let Err(_) = q_camera.get_single() {
-		commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-	}
+fn spawn_camera(mut commands: Commands) {
+	info!("SPAWN_CAMERA");
+	commands
+		.spawn_bundle(OrthographicCameraBundle::new_2d())
+		.insert(MainCamera);
+}
+
+/// Startup system. Spawns all the things that are necessary to render the scene
+fn spawn_scene(mut commands: Commands, rapier_parameters: Res<RapierConfiguration>) {
+	info!("SPAWN_SCENE");
 
 	// test dummy rigidbody
 	commands

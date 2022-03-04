@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
+	ecs::schedule::ShouldRun,
 	prelude::*,
 	tasks::{AsyncComputeTaskPool, Task},
 };
@@ -16,6 +17,8 @@ use crate::player::Player;
 /// Score is how long the player stays alive, given the current upgrade level of the boss (inc. enemy)
 pub struct GamePlugin;
 
+pub struct LeaderboardEvent;
+
 impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(GameGlobals {
@@ -24,6 +27,7 @@ impl Plugin for GamePlugin {
 			scores: vec![],
 			..Default::default()
 		})
+		.add_event::<LeaderboardEvent>()
 		.add_state(GameState::Playing)
 		.add_system_set(
 			SystemSet::on_update(GameState::Playing)
@@ -65,6 +69,18 @@ fn reset_game_globals(mut globals: ResMut<GameGlobals>, time: Res<Time>) {
 	globals.time_started = time.time_since_startup();
 	globals.level = 1;
 	globals.score = 0;
+}
+
+pub fn run_when_enter_playing_state(
+	state: Res<State<GameState>>,
+	globals: Res<GameGlobals>,
+	time: Res<Time>,
+) -> ShouldRun {
+	if *state.current() == GameState::Playing && time.time_since_startup() == globals.time_started {
+		ShouldRun::YesAndCheckAgain
+	} else {
+		ShouldRun::NoAndCheckAgain
+	}
 }
 
 fn restart_game_when_player_dies(

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::GameState;
+use crate::{game::GameState, scene::MainCamera};
 
 pub struct InputPlugin;
 
@@ -22,7 +22,7 @@ pub struct MousePosition(pub Vec2);
 fn update_mouse_position(
 	mut mouse_pos: ResMut<MousePosition>,
 	windows_info: Res<Windows>,
-	q_camera: Query<(&Camera, &GlobalTransform)>,
+	q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
 	let (camera, camera_transform) = q_camera.single();
 	let wnd = windows_info.get(camera.window).unwrap();

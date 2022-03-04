@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::{math::Vec3Swizzles, prelude::*, utils::HashMap};
-use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
+use bevy_inspector_egui::Inspectable;
 use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
 use bevy_rapier2d::prelude::*;
 

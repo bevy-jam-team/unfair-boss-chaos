@@ -6,6 +6,8 @@ use crate::{
 	physics::PhysicsGlobals,
 };
 
+pub struct PlayerSpawnEvent;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -13,6 +15,7 @@ impl Plugin for PlayerPlugin {
 		app.insert_resource(PlayerParams {
 			start_health: 100.0,
 		})
+		.add_event::<PlayerSpawnEvent>()
 		.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_player))
 		.add_system_set(SystemSet::on_update(GameState::Playing).with_system(player_movement));
 	}
@@ -34,13 +37,9 @@ fn spawn_player(
 	rapier_config: Res<RapierConfiguration>,
 	physics_globals: Res<PhysicsGlobals>,
 	params: Res<PlayerParams>,
-	q_player: Query<&Player>,
+	mut ev_writer: EventWriter<PlayerSpawnEvent>,
 ) {
 	info!("SPAWN_PLAYER");
-
-	if q_player.get_single().is_ok() {
-		return;
-	}
 
 	// spawn player sprite with physics attached
 	commands
@@ -71,6 +70,8 @@ fn spawn_player(
 		})
 		.insert(Player(PLAYER_SPEED_VALUE))
 		.insert(Health(params.start_health));
+
+	ev_writer.send(PlayerSpawnEvent);
 }
 
 /// System that simply updated the player's velocity if buttons to move the player are pressed

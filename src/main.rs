@@ -8,6 +8,7 @@ mod physics;
 mod player;
 mod scene;
 mod shooting;
+mod ui;
 mod waypoints;
 
 fn main() {
@@ -20,6 +21,7 @@ fn main() {
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(game::GamePlugin)
 		.add_plugin(input::InputPlugin)
+		.add_plugin(ui::UIPlugin)
 		.add_plugin(physics::SetupPhysicsPlugin)
 		.add_plugin(scene::SetupScenePlugin)
 		.add_plugin(shooting::ShootingPlugin)

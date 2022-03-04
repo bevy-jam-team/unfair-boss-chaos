@@ -9,7 +9,7 @@ use crate::{
 	physics::PhysicsGlobals,
 	player::Player,
 };
-use bevy_inspector_egui::{Inspectable, InspectorPlugin};
+use bevy_inspector_egui::Inspectable;
 
 pub struct ShootingPlugin;
 

@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
-use bevy::{core::FixedTimestep, math::Vec3Swizzles, prelude::*};
-use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
+use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{na::UnitComplex, prelude::*};
 
 use crate::{
@@ -15,16 +15,20 @@ use crate::{
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 pub struct AIUpdateStage;
 
+pub struct BossSpawnEvent;
+
 pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boss))
+			.add_event::<BossSpawnEvent>()
 			.add_system_set(
 				SystemSet::on_update(GameState::Playing)
 					.with_system(enemy_movement)
 					.with_system(enemy_state_control),
-			);
+			)
+			.insert_resource(EnemyParams::default());
 		//.register_inspectable::<Enemy>()
 		//.add_plugin(InspectorPlugin::<EnemyParams>::new())
 	}
@@ -116,12 +120,12 @@ impl Default for EnemyState {
 	}
 }
 
-/// This system spawns the boss or respawns the boss if EnemyParams have changed
 fn spawn_boss(
 	mut commands: Commands,
 	params: Res<EnemyParams>,
 	rapier_config: ResMut<RapierConfiguration>,
 	physics_globals: Res<PhysicsGlobals>,
+	mut ev_writer: EventWriter<BossSpawnEvent>,
 ) {
 	let collider_flags = ColliderFlags {
 		collision_groups: InteractionGroups::new(physics_globals.enemy_mask, u32::MAX),
@@ -316,6 +320,8 @@ fn spawn_boss(
 		.insert(Boss)
 		.insert(Health(params.start_health))
 		.id();
+
+	ev_writer.send(BossSpawnEvent);
 }
 
 fn enemy_movement(
@@ -417,7 +423,6 @@ fn enemy_state_control(
 	physics_globals: Res<PhysicsGlobals>,
 	params: Res<EnemyParams>,
 	collider_query: QueryPipelineColliderComponentsQuery,
-	state: Res<State<GameState>>,
 	_time: Res<Time>,
 ) {
 	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);

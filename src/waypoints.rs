@@ -8,7 +8,10 @@ use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
 use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
 use bevy_rapier2d::prelude::*;
 
-use crate::game::{GameGlobals, GameState};
+use crate::{
+	game::{GameGlobals, GameState},
+	physics::PhysicsGlobals,
+};
 
 pub struct WaypointsPlugin;
 
@@ -139,6 +142,7 @@ fn construct_edges(
 	rapier_params: Res<RapierConfiguration>,
 	state: Res<State<GameState>>,
 	game_globals: Res<GameGlobals>,
+	physics_globals: Res<PhysicsGlobals>,
 	time: Res<Time>,
 ) {
 	if *state.current() != GameState::Playing {
@@ -168,7 +172,7 @@ fn construct_edges(
 			&ray,
 			1.0,
 			true,
-			InteractionGroups::all(),
+			InteractionGroups::new(u32::MAX, u32::MAX - physics_globals.enemy_mask),
 			None,
 		) {
 			let dist = wp2.0.distance(wp1.0);

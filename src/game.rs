@@ -207,7 +207,7 @@ impl Leaderboard {
 	pub async fn add_score(score: u32, user: &str) -> Result<(), JsValue> {
 		let _ = web_sys::window()
 			.unwrap()
-			.alert_with_message(format!("You died... well it's unfair because the boss never dies!!!.\n\nYou scored {} Points under the name {}\n\nCheck out the leaderboard at https://gamejolt.com/dashboard/games/697047/api/scoreboards/705726", score, user).as_str());
+			.alert_with_message(format!("You died... well it's unfair because the boss never dies!!!.\n\nYou scored {} Points under the name {}\n\nCheck out the leaderboard at https://gamejolt.com/games/bevy-jam-1-submission/697047/scores/705726/best", score, user).as_str());
 		Self::fetch_api(
 			"/scores/add",
 			Some(format!(

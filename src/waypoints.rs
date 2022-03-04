@@ -30,9 +30,9 @@ impl Plugin for WaypointsPlugin {
 			SystemSet::on_update(GameState::Playing)
 				.with_system(create_path_event_listener.before("set_next_waypoint"))
 				.with_system(set_next_waypoint.label("set_next_waypoint")),
-		)
-		.add_plugin(DebugLinesPlugin::default())
-		.add_system_to_stage(CoreStage::Last, debug_render);
+		);
+		//.add_plugin(DebugLinesPlugin::default())
+		//.add_system_to_stage(CoreStage::Last, debug_render);
 	}
 }
 

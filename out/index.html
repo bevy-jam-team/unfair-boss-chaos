@@ -1,0 +1,123 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css">
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+  </head>
+  <body>
+    <!-- Note the usage of `type=module` here as this is an ES6 module -->
+    <button id="button">
+  <i class="fas fa-volume-up"></i>
+</button>
+    <audio src="https://drive.google.com/uc?export=download&id=1l9CHK_G-3aW8mTrL7VRCyMF3CV-dxrOH"></audio>
+    <script type="module">
+      // Use ES module import syntax to import functionality from the module
+      // that we have compiled.
+      //
+      // Note that the `default` import is an initialization function which
+      // will "boot" the module and make it ready to use. Currently browsers
+      // don't support natively imported WebAssembly as an ES module, but
+      // eventually the manual initialization won't be required!
+      import init from './pkg/bevy-jam-1-submission.js';
+
+      async function run() {
+        // First up we need to actually load the wasm file, so we use the
+        // default export to inform it where the wasm file is located on the
+        // server, and then we wait on the returned promise to wait for the
+        // wasm to be loaded.
+        //
+        // It may look like this: `await init('./pkg/without_a_bundler_bg.wasm');`,
+        // but there is also a handy default inside `init` function, which uses
+        // `import.meta` to locate the wasm file relatively to js file.
+        //
+        // Note that instead of a string you can also pass in any of the
+        // following things:
+        //
+        // * `WebAssembly.Module`
+        //
+        // * `ArrayBuffer`
+        //
+        // * `Response`
+        //
+        // * `Promise` which returns any of the above, e.g. `fetch("./path/to/wasm")`
+        //
+        // This gives you complete control over how the module is loaded
+        // and compiled.
+        //
+        // Also note that the promise, when resolved, yields the wasm module's
+        // exports which is the same as importing the `*_bg` module in other
+        // modes
+        //playMusic();
+        await init();
+      }
+
+      const button = document.querySelector("#button");
+const icon = document.querySelector("#button > i");
+const audio = document.querySelector("audio");
+
+button.addEventListener("click", () => {
+  if (audio.paused) {
+    audio.volume = 0.2;
+    audio.play();
+    icon.classList.remove('fa-volume-up');
+    icon.classList.add('fa-volume-mute');
+    
+  } else {
+    audio.pause();
+    icon.classList.remove('fa-volume-mute');
+    icon.classList.add('fa-volume-up');
+  }
+  button.classList.add("fade");
+});
+
+      run();
+    </script>
+  </body>
+  <style>
+    
+audio {
+  display: none;
+}
+
+p {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(238, 238, 238, 0.6);
+  font-size: 20px;
+}
+
+button {
+  font-size: 16px;
+  color: #eee;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  padding: 15px;
+  border: none;
+  border-radius: 2px;
+  outline: none;
+  background: rgba(115, 67, 167, 0.8);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+  opacity: 0.8;
+  cursor: pointer;
+  transition: all 0.4s ease-out;
+}
+
+button.fade:hover {
+  opacity: 0.8;
+}
+
+.fade {
+  opacity: 0.2;
+  top: 0;
+  left: 0;
+  transform: translate(0, 0);
+}
+  </style>
+</html>
+
+

@@ -17,7 +17,7 @@ fn main() {
 	console_error_panic_hook::set_once();
 	App::new()
 		.add_plugins(DefaultPlugins)
-		.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+		//.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(game::GamePlugin)
 		.add_plugin(input::InputPlugin)

@@ -1,28 +1,32 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::game::GameState;
+
 pub struct SetupScenePlugin;
 
 impl Plugin for SetupScenePlugin {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(WindowDescriptor {
-			..Default::default()
-		})
-		.add_startup_system(spawn_camera_and_scene.label("scene"));
+		app.insert_resource(WindowDescriptor::default())
+			.add_system_set(
+				SystemSet::on_enter(GameState::Playing)
+					.with_system(spawn_camera_and_scene.label("scene")),
+			);
 	}
 }
 
-#[derive(Component)]
-pub struct CameraTag;
-
 /// Startup system. Spawns all the things that are necessary to render the scene
-fn spawn_camera_and_scene(mut commands: Commands, rapier_parameters: Res<RapierConfiguration>) {
+fn spawn_camera_and_scene(
+	mut commands: Commands,
+	rapier_parameters: Res<RapierConfiguration>,
+	q_camera: Query<&Camera>,
+) {
 	info!("SPAWN_CAMERA_AND_SCENE");
 
 	// camera
-	commands
-		.spawn_bundle(OrthographicCameraBundle::new_2d())
-		.insert(CameraTag);
+	if let Err(_) = q_camera.get_single() {
+		commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+	}
 
 	// test dummy rigidbody
 	commands

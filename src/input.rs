@@ -1,12 +1,16 @@
-use crate::scene::CameraTag;
 use bevy::prelude::*;
+
+use crate::game::GameState;
 
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
-			.add_system(update_mouse_position.label("input"));
+			.add_system_set(
+				SystemSet::on_update(GameState::Playing)
+					.with_system(update_mouse_position.label("input")),
+			);
 	}
 }
 
@@ -18,7 +22,7 @@ pub struct MousePosition(pub Vec2);
 fn update_mouse_position(
 	mut mouse_pos: ResMut<MousePosition>,
 	windows_info: Res<Windows>,
-	q_camera: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
+	q_camera: Query<(&Camera, &GlobalTransform)>,
 ) {
 	let (camera, camera_transform) = q_camera.single();
 	let wnd = windows_info.get(camera.window).unwrap();

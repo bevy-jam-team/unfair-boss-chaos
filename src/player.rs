@@ -1,14 +1,20 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::physics::PhysicsGlobals;
+use crate::{
+	game::{GameState, Health},
+	physics::PhysicsGlobals,
+};
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(spawn_player)
-			.add_system(player_movement);
+		app.insert_resource(PlayerParams {
+			start_health: 100.0,
+		})
+		.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_player))
+		.add_system_set(SystemSet::on_update(GameState::Playing).with_system(player_movement));
 	}
 }
 
@@ -18,13 +24,23 @@ const PLAYER_SPEED_VALUE: f32 = 300.0; // Pixels / sec
 #[derive(Component)]
 pub struct Player(pub f32);
 
-pub fn spawn_player(
+struct PlayerParams {
+	start_health: f32,
+}
+
+fn spawn_player(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	rapier_config: Res<RapierConfiguration>,
 	physics_globals: Res<PhysicsGlobals>,
+	params: Res<PlayerParams>,
+	q_player: Query<&Player>,
 ) {
 	info!("SPAWN_PLAYER");
+
+	if q_player.get_single().is_ok() {
+		return;
+	}
 
 	// spawn player sprite with physics attached
 	commands
@@ -53,7 +69,8 @@ pub fn spawn_player(
 			.into(),
 			..Default::default()
 		})
-		.insert(Player(PLAYER_SPEED_VALUE));
+		.insert(Player(PLAYER_SPEED_VALUE))
+		.insert(Health(params.start_health));
 }
 
 /// System that simply updated the player's velocity if buttons to move the player are pressed

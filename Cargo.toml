@@ -11,6 +11,14 @@ bevy_rapier2d = { version = "0.12.1", features = [ "simd-stable", "wasm-bindgen"
 bevy-inspector-egui = "0.8"
 console_error_panic_hook = "0.1"
 bevy_prototype_debug_lines = "0.6"
+md5 = "0.7.0"
+web-sys = { version = "0.3", features = ["Window", "Response"] }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+wasm-bindgen-futures = "0.4"
+futures = "0.3"
+futures-lite = "1.12"
 
 [profile.release]
 opt-level = 's'

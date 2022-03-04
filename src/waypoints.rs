@@ -8,6 +8,11 @@ use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
 use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
 use bevy_rapier2d::prelude::*;
 
+use crate::{
+	game::{GameGlobals, GameState},
+	physics::PhysicsGlobals,
+};
+
 pub struct WaypointsPlugin;
 
 impl Plugin for WaypointsPlugin {
@@ -16,18 +21,17 @@ impl Plugin for WaypointsPlugin {
 			weights_cell: Arc::new(Mutex::new(HashMap::default())),
 		})
 		.add_event::<CreatePathEvent>()
-		.register_inspectable::<Waypoint>()
-		.add_plugin(InspectorPlugin::<WaypointsParams>::new())
-		.add_system(spawn_waypoints.before("construct_edges"))
-		.add_system(construct_edges.label("construct_edges").after("scene"))
-		.add_plugin(DebugLinesPlugin::default())
-		.add_system_set_to_stage(
-			CoreStage::PostUpdate,
-			SystemSet::new()
-				.with_system(construct_edges)
+		.insert_resource(WaypointsParams::default())
+		//.register_inspectable::<Waypoint>()
+		//.add_plugin(InspectorPlugin::<WaypointsParams>::new())
+		.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_waypoints))
+		.add_system_to_stage(CoreStage::PostUpdate, construct_edges)
+		.add_system_set(
+			SystemSet::on_update(GameState::Playing)
 				.with_system(create_path_event_listener.before("set_next_waypoint"))
 				.with_system(set_next_waypoint.label("set_next_waypoint")),
 		)
+		.add_plugin(DebugLinesPlugin::default())
 		.add_system_to_stage(CoreStage::Last, debug_render);
 	}
 }
@@ -117,10 +121,6 @@ fn spawn_waypoints(
 	window: Res<WindowDescriptor>,
 	params: Res<WaypointsParams>,
 ) {
-	if !params.is_changed() {
-		return;
-	}
-
 	let x_max = (window.width / params.gap.x / 2.0) as i32;
 	let y_max = (window.height / params.gap.y / 2.0) as i32;
 	for y_i in -y_max..y_max {
@@ -140,9 +140,16 @@ fn construct_edges(
 	query_pipeline: Res<QueryPipeline>,
 	collider_query: QueryPipelineColliderComponentsQuery,
 	rapier_params: Res<RapierConfiguration>,
-	params: Res<WaypointsParams>,
+	state: Res<State<GameState>>,
+	game_globals: Res<GameGlobals>,
+	physics_globals: Res<PhysicsGlobals>,
+	time: Res<Time>,
 ) {
-	if !params.is_changed() {
+	if *state.current() != GameState::Playing {
+		return;
+	}
+
+	if (time.time_since_startup() - game_globals.time_started).as_secs() < 3 {
 		return;
 	}
 
@@ -152,7 +159,6 @@ fn construct_edges(
 		}
 	}
 
-	info!("CONTRUCT EDGES, {}", query.iter().len());
 	let mut iter = query.iter_combinations_mut();
 	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
 
@@ -166,7 +172,7 @@ fn construct_edges(
 			&ray,
 			1.0,
 			true,
-			InteractionGroups::all(),
+			InteractionGroups::new(u32::MAX, u32::MAX - physics_globals.enemy_mask),
 			None,
 		) {
 			let dist = wp2.0.distance(wp1.0);
@@ -349,8 +355,9 @@ fn debug_render(
 	mut lines: ResMut<DebugLines>,
 	globals: Res<WaypointGlobals>,
 	params: Res<WaypointsParams>,
+	state: Res<State<GameState>>,
 ) {
-	if !globals.is_changed() {
+	if *state.current() != GameState::Playing {
 		return;
 	}
 

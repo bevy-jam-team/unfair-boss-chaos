@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 mod enemy;
+mod game;
 mod input;
 mod physics;
 mod player;
@@ -17,6 +18,7 @@ fn main() {
 		.add_plugins(DefaultPlugins)
 		.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+		.add_plugin(game::GamePlugin)
 		.add_plugin(input::InputPlugin)
 		.add_plugin(physics::SetupPhysicsPlugin)
 		.add_plugin(scene::SetupScenePlugin)

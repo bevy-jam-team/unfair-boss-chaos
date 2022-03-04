@@ -5,8 +5,10 @@ use bevy_inspector_egui::{Inspectable, InspectorPlugin, RegisterInspectable};
 use bevy_rapier2d::{na::UnitComplex, prelude::*};
 
 use crate::{
+	game::{GameState, Health},
 	physics::PhysicsGlobals,
 	player::Player,
+	shooting::ShootEvent,
 	waypoints::{CreatePathEvent, NextWaypoint},
 };
 
@@ -17,19 +19,14 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app.register_inspectable::<Enemy>()
-			.add_system_to_stage(CoreStage::Last, spawn_boss_reactive)
-			.add_plugin(InspectorPlugin::<EnemyParams>::new())
-			.add_system(enemy_state_control)
-			.add_system(enemy_movement)
-			.add_stage_after(
-				// runs every 1.5 seconds to update AI stats
-				CoreStage::Update,
-				AIUpdateStage,
-				SystemStage::parallel()
-					.with_run_criteria(FixedTimestep::step(1.5))
+		app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boss))
+			.add_system_set(
+				SystemSet::on_update(GameState::Playing)
+					.with_system(enemy_movement)
 					.with_system(enemy_state_control),
 			);
+		//.register_inspectable::<Enemy>()
+		//.add_plugin(InspectorPlugin::<EnemyParams>::new())
 	}
 }
 
@@ -42,6 +39,7 @@ struct EnemyParams {
 	follow_threshold: f32,
 	attack_dist: f32,
 	visibility_dist: f32,
+	start_health: f32,
 	body_scale: Vec2,
 	left_arm_pos: Vec2,
 	left_arm_scale: Vec2,
@@ -67,6 +65,7 @@ impl Default for EnemyParams {
 			speed: 80.0,
 			rot_offset: -PI / 2.0,
 			attack_dist: 140.0,
+			start_health: 100.0,
 			follow_threshold: 30.0,
 			visibility_dist: 400.0,
 			spawn_pos: Vec2::new(150.0, 0.0),
@@ -118,21 +117,12 @@ impl Default for EnemyState {
 }
 
 /// This system spawns the boss or respawns the boss if EnemyParams have changed
-fn spawn_boss_reactive(
+fn spawn_boss(
 	mut commands: Commands,
 	params: Res<EnemyParams>,
 	rapier_config: ResMut<RapierConfiguration>,
 	physics_globals: Res<PhysicsGlobals>,
-	mut query: Query<Entity, With<Boss>>,
 ) {
-	if !params.is_changed() {
-		return;
-	}
-
-	if let Ok(entity) = query.get_single_mut() {
-		commands.entity(entity).despawn_recursive();
-	}
-
 	let collider_flags = ColliderFlags {
 		collision_groups: InteractionGroups::new(physics_globals.enemy_mask, u32::MAX),
 		..Default::default()
@@ -324,6 +314,7 @@ fn spawn_boss_reactive(
 		})
 		.insert(Enemy(EnemyState::IDLE))
 		.insert(Boss)
+		.insert(Health(params.start_health))
 		.id();
 }
 
@@ -420,11 +411,13 @@ fn raycast_between(
 fn enemy_state_control(
 	mut q_enemy: Query<(Entity, &Transform, &mut Enemy)>,
 	q_player: Query<(Entity, &Transform), With<Player>>,
+	mut ev_shoot_writer: EventWriter<ShootEvent>,
 	mut create_path_ew: EventWriter<CreatePathEvent>,
 	query_pipeline: Res<QueryPipeline>,
 	physics_globals: Res<PhysicsGlobals>,
 	params: Res<EnemyParams>,
 	collider_query: QueryPipelineColliderComponentsQuery,
+	state: Res<State<GameState>>,
 	_time: Res<Time>,
 ) {
 	let collider_set = QueryPipelineColliderComponentsSet(&collider_query);
@@ -459,6 +452,10 @@ fn enemy_state_control(
 			}
 			EnemyState::ATTACK(Some(target)) => {
 				if let Ok((player, player_t)) = q_player.get(target) {
+					let pos = transform.translation.xy();
+					let dir = player_t.translation.xy() - pos;
+					ev_shoot_writer.send(ShootEvent(false, pos, dir));
+
 					let dist = player_t.translation.distance(transform.translation);
 					if dist > params.attack_dist {
 						enemy.0 = EnemyState::CHASING(Some(player));

@@ -1,0 +1,19 @@
+version: 2.1
+# Use a package of configuration called an orb.
+orbs:
+  rust: circleci/rust@1.5.0
+
+jobs:
+  rust-check:
+    docker:
+      - image: circleci/rust
+    steps:
+      - checkout
+      - rust/check
+      - rust/build:
+          release: true
+
+workflows:
+  rust:
+    jobs:
+      - rust-check
